@@ -22,6 +22,7 @@ Route::prefix('api')->group(function () {
         Route::post('/stores',[StoreController::class,'store']);
         Route::put('/stores/{store}',[StoreController::class,'update']);
         Route::get('/stores/{store}/products',[ProductController::class,'index']);
+        Route::post('/stores/{store}/costs/products',[CostController::class,'productCosts']);
         Route::post('/stores/{store}/costs/variants',[CostController::class,'variantCosts']);
         Route::get('/stores/{store}/fees',[CostController::class,'feeHistory']);
         Route::post('/stores/{store}/fees',[CostController::class,'storeFee']);

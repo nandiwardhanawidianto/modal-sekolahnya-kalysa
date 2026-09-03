@@ -43,6 +43,9 @@ final class XlsxReader
             $row->registerXPathNamespace('m','http://schemas.openxmlformats.org/spreadsheetml/2006/main');
             $values = [];
             foreach ($row->xpath('m:c') ?: [] as $cell) {
+                // XPath namespace registrations are scoped to each SimpleXMLElement node.
+                // Register it again on the cell before evaluating inline rich-text paths.
+                $cell->registerXPathNamespace('m','http://schemas.openxmlformats.org/spreadsheetml/2006/main');
                 $attrs = $cell->attributes();
                 $ref = (string) ($attrs['r'] ?? 'A1');
                 $type = (string) ($attrs['t'] ?? '');

@@ -16,7 +16,7 @@ final class ProfitReportService
         $from = Carbon::parse($start, 'Asia/Jakarta')->startOfDay();
         $to = Carbon::parse($end, 'Asia/Jakarta')->endOfDay();
         $store->load(['feeHistories']);
-        $orders = Order::with(['items.variant.costHistories','items.product.variants.costHistories','settlement','adjustments'])
+        $orders = Order::with(['items.variant.costHistories','items.variant.product.costHistories','items.product.costHistories','items.product.variants.costHistories','items.product.variants.product.costHistories','settlement','adjustments'])
             ->where('store_id',$store->id)->whereBetween('ordered_at',[$from,$to])->orderBy('ordered_at')->get();
         $ad = $this->ads->resolve($store, $from->toDateString(), $to->toDateString());
 

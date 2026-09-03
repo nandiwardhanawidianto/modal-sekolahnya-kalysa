@@ -1,0 +1,16 @@
+Modal Sekolahnya Kalysa — Update HPP/Admin per Produk
+
+1. Extract ZIP ini ke C:\laragon\www\modal-sekolahnya-kalysa dan pilih Replace/Overwrite.
+2. Backend:
+   cd C:\laragon\www\modal-sekolahnya-kalysa\backend
+   php artisan migrate
+   php artisan optimize:clear
+3. Frontend:
+   cd ..\frontend
+   npm run build
+4. Jalankan ulang Laravel:
+   cd ..\backend
+   php artisan serve
+
+Tidak perlu composer install ulang.
+Data HPP variasi yang sudah pernah diinput tidak dihapus; nilainya menjadi override variasi.
