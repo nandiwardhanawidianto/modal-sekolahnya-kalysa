@@ -1,0 +1,1 @@
+export default function Card({title,value,sub,tone='default'}){return <div className={`card metric ${tone}`}><div className="metric-title">{title}</div><div className="metric-value">{value}</div>{sub&&<div className="metric-sub">{sub}</div>}</div>}
