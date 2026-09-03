@@ -1,23 +1,21 @@
-KALYSA v1.1.1 - Fix Dashboard Mia HPP vs Fee
+KALYSA v1.2.0 - Cache navigasi + Kesehatan Data
 
-Masalah yang diperbaiki:
-1. Dashboard Mia sebelumnya menggabungkan HPP kosong dan fee/admin toko kosong ke metric orders_missing_hpp.
-2. Order yang sudah memiliki Penghasilan Shopee aktual ikut dibuang dari profit bila konfigurasi fee historis tidak ditemukan.
-
-Perbaikan:
-- orders_missing_hpp sekarang hanya berarti HPP item memang null.
-- Tambah metric orders_missing_fee_config untuk order belum settle yang perlu estimasi.
-- Order dengan settlement aktual + HPP lengkap selalu dihitung: actual_income + adjustment - HPP.
-- Fee/admin hanya wajib untuk order belum settle yang perlu estimasi.
-- UI Mia menampilkan penyebab secara terpisah.
+Perubahan:
+1. GET API disimpan sementara di cache memori browser sehingga kembali ke halaman yang sama tidak fetch ulang terus.
+2. Cache otomatis dibuang setelah import, ubah HPP/fee, arsip produk, input iklan, tambah toko, rollback, dan perubahan data lain.
+3. Request GET yang sama secara bersamaan dideduplikasi.
+4. Tambah menu Kesehatan Data.
+5. Kesehatan Data menampilkan HPP, settlement, iklan, fee, coverage order, status final, masalah order, dan sumber data terakhir.
+6. Tombol "Periksa Ulang dari Database" melewati cache bila ingin memastikan data paling baru.
 
 Tidak ada migration.
-Tidak menyentuh CostController / baseline HPP / fitur arsip produk.
+Tidak menambah dependency npm baru.
+Tidak mengubah CostController baseline HPP/admin.
+Tidak mengubah SimpleDashboardService v1.1.1.
 
-Pasang dari root project dengan overwrite file sesuai struktur, lalu:
+Setelah overwrite:
 cd backend
 php artisan optimize:clear
 cd ..\frontend
 npm run build
-
-Lalu Ctrl+Shift+R di browser.
+Lalu Ctrl+Shift+R.
