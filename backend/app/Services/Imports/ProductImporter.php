@@ -21,15 +21,15 @@ final class ProductImporter
     foreach($reader->rows($sheet) as $row){if($row['row']<=$header['row'])continue;$v=$row['values'];$productId=trim($v[$h['Kode Produk']]??'');$variationId=trim($v[$h['Kode Variasi']]??'');if($productId===''||$variationId===''||!ctype_digit($productId))continue;$read++;
      $product=Product::withTrashed()->where('store_id',$store->id)->where('shopee_product_id',$productId)->first();$isNew=!$product;
      if(!$product)$product=new Product(['store_id'=>$store->id,'shopee_product_id'=>$productId]);
-     $product->fill(['name'=>trim($v[$h['Nama Produk']]??''),'parent_sku'=>trim($v[$h['SKU Induk']]??'')?:null,'active'=>true,'last_import_batch_id'=>$batch->id]);$product->deleted_at=null;$product->save();
+     $product->fill(['name'=>trim($v[$h['Nama Produk']]??''),'parent_sku'=>trim($v[$h['SKU Induk']]??'')?:null,'last_import_batch_id'=>$batch->id]);if($isNew)$product->active=true;$product->deleted_at=null;$product->save();
      $variant=ProductVariant::withTrashed()->where('store_id',$store->id)->where('shopee_variation_id',$variationId)->first();$variantNew=!$variant;
      if(!$variant)$variant=new ProductVariant(['store_id'=>$store->id,'shopee_variation_id'=>$variationId]);
-     $variant->fill(['product_id'=>$product->id,'name'=>trim($v[$h['Nama Variasi']]??'')?:null,'sku'=>trim($v[$h['SKU']]??'')?:null,'current_price'=>Money::rupiah($v[$h['Harga']]??0),'stock'=>isset($h['Stok'])?Money::rupiah($v[$h['Stok']]??0):null,'minimum_purchase'=>isset($h['Min. Jumlah Pembelian']) ? (((int)($v[$h['Min. Jumlah Pembelian']]??0)) ?: null) : null,'active'=>true,'last_import_batch_id'=>$batch->id]);$variant->deleted_at=null;$variant->save();
+     $variant->fill(['product_id'=>$product->id,'name'=>trim($v[$h['Nama Variasi']]??'')?:null,'sku'=>trim($v[$h['SKU']]??'')?:null,'current_price'=>Money::rupiah($v[$h['Harga']]??0),'stock'=>isset($h['Stok'])?Money::rupiah($v[$h['Stok']]??0):null,'minimum_purchase'=>isset($h['Min. Jumlah Pembelian']) ? (((int)($v[$h['Min. Jumlah Pembelian']]??0)) ?: null) : null,'last_import_batch_id'=>$batch->id]);if($variantNew)$variant->active=(bool)$product->active;$variant->deleted_at=null;$variant->save();
      if($variantNew)$created++;else $updated++;
     }
    });
    $batch->update(['rows_read'=>$read,'created_count'=>$created,'updated_count'=>$updated]);$remap=$this->remapper->remap($store->id);
-   $summary=['variants'=>$read,'created'=>$created,'updated'=>$updated,'products'=>Product::where('store_id',$store->id)->count(),'missing_hpp'=>ProductVariant::where('store_id',$store->id)->whereDoesntHave('costHistories')->count(),'remapped_order_items'=>$remap];
+   $summary=['variants'=>$read,'created'=>$created,'updated'=>$updated,'products'=>Product::where('store_id',$store->id)->where('active',true)->count(),'missing_hpp'=>ProductVariant::where('store_id',$store->id)->where('active',true)->whereHas('product',fn($q)=>$q->where('active',true))->whereDoesntHave('costHistories')->count(),'remapped_order_items'=>$remap];
    $this->support->finish($batch,$summary);return ['batch'=>$batch->fresh(),'summary'=>$summary];
   } catch(\Throwable $e){$this->support->fail($batch,$e);throw $e;}
  }

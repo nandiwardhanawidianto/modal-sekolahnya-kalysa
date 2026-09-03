@@ -13,11 +13,11 @@ export default function StoreReport({ storeId }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  async function load() {
+  async function load(s = start, e = end) {
     if (!storeId) return;
     setLoading(true);
     try {
-      setData(await api(`/api/stores/${storeId}/report?start=${start}&end=${end}`));
+      setData(await api(`/api/stores/${storeId}/report?start=${s}&end=${e}`));
       setError('');
     } catch (e) {
       setError(e.message);
@@ -33,6 +33,7 @@ export default function StoreReport({ storeId }) {
   const c = data?.coverage || {};
   const ads = data?.ads || {};
   const hasPending = (m.orders_pending || 0) + (m.orders_pending_settlement || 0) > 0;
+  const hasData = (m.orders_total || 0) > 0 || (m.ad_spend_known || 0) > 0;
 
   return <>
     <div className="page-head">
@@ -44,7 +45,7 @@ export default function StoreReport({ storeId }) {
     </div>
 
     {error && <div className="error-box">{error}</div>}
-    {loading && !data ? <Loading /> : data && <>
+    {loading && !data ? <Loading /> : data && !hasData ? <div className="empty card">Tidak ada data pada periode ini.</div> : data && <>
       {!ads.precise && <div className="info-box">{ads.message} Biaya iklan yang pasti berada penuh di filter ini: <strong>{rp(ads.known_amount)}</strong>. Profit setelah iklan sengaja tidak dihitung sampai coverage iklan presisi.</div>}
       {hasPending && <div className="info-box">Masih ada pesanan/settlement pending. Angka proyeksi menambahkan estimasi profit pending; jangan membaca profit confirmed setelah iklan sebagai hasil final periode.</div>}
       {(c.fees?.orders_missing||0)>0 && <div className="info-box">Ada {c.fees.orders_missing} order yang tanggalnya belum memiliki konfigurasi admin/fixed fee. Profit actual yang sudah settlement tetap valid, tetapi estimasi pending dan expected-vs-actual untuk order tersebut ditahan.</div>}

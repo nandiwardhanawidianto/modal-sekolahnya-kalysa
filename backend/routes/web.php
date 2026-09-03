@@ -22,6 +22,7 @@ Route::prefix('api')->group(function () {
         Route::post('/stores',[StoreController::class,'store']);
         Route::put('/stores/{store}',[StoreController::class,'update']);
         Route::get('/stores/{store}/products',[ProductController::class,'index']);
+        Route::patch('/stores/{store}/products/{product}/status',[ProductController::class,'status']);
         Route::post('/stores/{store}/costs/products',[CostController::class,'productCosts']);
         Route::post('/stores/{store}/costs/variants',[CostController::class,'variantCosts']);
         Route::get('/stores/{store}/fees',[CostController::class,'feeHistory']);
@@ -39,6 +40,7 @@ Route::prefix('api')->group(function () {
         Route::get('/stores/{store}/report',[ReportController::class,'store']);
         Route::get('/stores/{store}/cashflow',[ReportController::class,'cashflow']);
         Route::get('/report/global',[ReportController::class,'global']);
+        Route::get('/report/mia',[ReportController::class,'mia']);
         Route::get('/stores/{store}/closings',[ClosingController::class,'index']);
         Route::post('/stores/{store}/closings',[ClosingController::class,'close']);
     });

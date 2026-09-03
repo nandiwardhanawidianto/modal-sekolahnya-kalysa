@@ -26,7 +26,8 @@ final class GlobalReportService
             if($m['ad_spend_precise'])$totals['ad_spend']+=(int)$m['ad_spend']; else $allAdsPrecise=false;
             foreach($r['pending'] as $p)$pending[]=$p+['store_id'=>$store->id,'store_name'=>$store->name];
             foreach($r['data_issues'] as $issue)$issues[]=$issue+['store_id'=>$store->id,'store_name'=>$store->name];
-            $rows[]=['store'=>$r['store'],'metrics'=>$m,'coverage'=>$r['coverage']];
+            $hasStoreData=(int)($m['orders_total']??0)>0||(int)($m['ad_spend_known']??0)>0;
+            if($hasStoreData)$rows[]=['store'=>$r['store'],'metrics'=>$m,'coverage'=>$r['coverage']];
         }
 
         $totals['ad_spend_precise']=$allAdsPrecise;
@@ -47,6 +48,7 @@ final class GlobalReportService
             'stores'=>$rows,
             'pending'=>array_slice($pending,0,300),
             'data_issues'=>array_slice($issues,0,300),
+            'has_data'=>count($rows)>0,
         ];
     }
 }

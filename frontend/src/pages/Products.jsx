@@ -15,12 +15,13 @@ export default function Products({storeId}){
   const [bulk,setBulk]=useState({hpp:'',admin:''})
   const [fee,setFee]=useState({default_admin_percent:'',fixed_fee_per_order:'1250',effective_from:today()})
   const [meta,setMeta]=useState({})
+  const [status,setStatus]=useState('active')
 
   async function load(){
     if(!storeId)return
     setLoading(true)
     try{
-      const d=await api(`/api/stores/${storeId}/products?q=${encodeURIComponent(q)}`)
+      const d=await api(`/api/stores/${storeId}/products?q=${encodeURIComponent(q)}&status=${status}`)
       setProducts(d.data||[])
       setMeta(d.meta||{})
       const f=await api(`/api/stores/${storeId}/fees`)
@@ -44,7 +45,7 @@ export default function Products({storeId}){
     setEffective(today())
     setFee({default_admin_percent:'',fixed_fee_per_order:'1250',effective_from:today()})
     load()
-  },[storeId])
+  },[storeId,status])
 
   function editProduct(id,key,value){
     setProducts(rows=>rows.map(p=>p.id===id?{...p,[key]:value}:p))
@@ -69,10 +70,13 @@ export default function Products({storeId}){
   }
 
   async function saveProducts(){
-    const selected=products.filter(p=>productDirty[p.id])
-    if(!selected.length)return
-    const missing=selected.filter(p=>p.default_hpp===''||p.default_hpp==null)
-    if(missing.length){setMsg(`${missing.length} produk belum diisi HPP. HPP produk wajib diisi.`);return}
+    const dirty=products.filter(p=>productDirty[p.id])
+    const selected=dirty.filter(p=>p.default_hpp!==''&&p.default_hpp!=null)
+    const skipped=dirty.length-selected.length
+    if(!selected.length){
+      setMsg('Tidak ada HPP Produk yang perlu disimpan. Produk yang HPP-nya diisi lewat Override Variasi boleh dibiarkan kosong di bagian atas.')
+      return
+    }
     await api(`/api/stores/${storeId}/costs/products`,{
       method:'POST',
       body:{
@@ -85,7 +89,7 @@ export default function Products({storeId}){
       },
     })
     setProductDirty({})
-    setMsg(`${selected.length} default biaya produk disimpan.`)
+    setMsg(`${selected.length} HPP Produk disimpan.${skipped?` ${skipped} produk dengan HPP Produk kosong dilewati karena bisa memakai Override Variasi.`:''}`)
     load()
   }
 
@@ -131,6 +135,21 @@ export default function Products({storeId}){
     }catch(e){setMsg(e.message)}finally{setLoading(false)}
   }
 
+
+  async function toggleArchive(product){
+    const nextActive=!product.active
+    const label=nextActive?'aktifkan kembali':'arsipkan'
+    if(!window.confirm(`${label.charAt(0).toUpperCase()+label.slice(1)} produk "${product.product_name}"?\n\nHistori order dan HPP tidak akan dihapus.`))return
+    setLoading(true)
+    try{
+      const d=await api(`/api/stores/${storeId}/products/${product.id}/status`,{method:'PATCH',body:{active:nextActive}})
+      setMsg(d.message||`Produk ${nextActive?'diaktifkan':'diarsipkan'}.`)
+      setProductDirty({})
+      setVariantDirty({})
+      load()
+    }catch(e){setMsg(e.message)}finally{setLoading(false)}
+  }
+
   async function saveFee(e){
     e.preventDefault()
     await api(`/api/stores/${storeId}/fees`,{
@@ -145,6 +164,8 @@ export default function Products({storeId}){
   }
 
   if(!storeId)return <div className="empty">Pilih toko terlebih dahulu.</div>
+
+  const savableProductCount=products.filter(p=>productDirty[p.id]&&p.default_hpp!==''&&p.default_hpp!=null).length
 
   return <>
     <div className="page-head">
@@ -182,15 +203,21 @@ export default function Products({storeId}){
         <div>
           <h3>3. Default biaya per produk</h3>
           <p>Kalau seluruh variasi sama, cukup isi satu kali di sini. Admin produk boleh kosong → memakai admin toko.</p>
+          <p className="muted">Aktif: {meta.active_products??0} · Diarsipkan: {meta.archived_products??0}. Produk arsip tetap aman untuk histori order lama.</p>
         </div>
         <div className="toolbar">
+          <select value={status} onChange={e=>setStatus(e.target.value)}>
+            <option value="active">Produk Aktif</option>
+            <option value="archived">Diarsipkan</option>
+            <option value="all">Semua Produk</option>
+          </select>
           <input placeholder="Cari produk / SKU" value={q} onChange={e=>setQ(e.target.value)}/>
           <button className="btn" onClick={load}>Cari</button>
           <label className="inline-label">Berlaku<input type="date" value={effective} onChange={e=>setEffective(e.target.value)}/></label>
           <input className="cell-input" type="number" placeholder="HPP massal" value={bulk.hpp} onChange={e=>setBulk({...bulk,hpp:e.target.value})}/>
           <input className="cell-input" type="number" step="0.01" placeholder="Admin produk" value={bulk.admin} onChange={e=>setBulk({...bulk,admin:e.target.value})}/>
           <button className="btn" onClick={applyBulkProducts} disabled={bulk.hpp===''&&bulk.admin===''}>Terapkan ke produk</button>
-          <button className="btn primary" onClick={saveProducts} disabled={!Object.keys(productDirty).length}>Simpan Produk {Object.keys(productDirty).length||''}</button>
+          <button className="btn primary" onClick={saveProducts} disabled={!savableProductCount}>Simpan HPP Produk {savableProductCount||''}</button>
         </div>
       </div>
 
@@ -206,6 +233,7 @@ export default function Products({storeId}){
               editProduct={editProduct}
               editVariant={editVariant}
               variantDirty={variantDirty}
+              toggleArchive={toggleArchive}
             />)}
             {!products.length&&!loading&&<tr><td colSpan="6" className="empty-cell">Belum ada produk.</td></tr>}
           </tbody>
@@ -221,8 +249,12 @@ export default function Products({storeId}){
   </>
 }
 
-function ProductRows({product:p,expanded,toggle,editProduct,editVariant,variantDirty}){
-  const ready=p.default_hpp!==null&&p.default_hpp!==''
+function ProductRows({product:p,expanded,toggle,editProduct,editVariant,variantDirty,toggleArchive}){
+  const hasDefault=p.default_hpp!==null&&p.default_hpp!==''
+  const variants=p.variants||[]
+  const readyVariants=variants.filter(v=>hasDefault||(v.override_hpp!==null&&v.override_hpp!=='')).length
+  const missingVariants=Math.max(0,variants.length-readyVariants)
+  const ready=hasDefault||(variants.length>0&&missingVariants===0)
   return <>
     <tr className="product-main-row">
       <td className="wide">
@@ -232,8 +264,8 @@ function ProductRows({product:p,expanded,toggle,editProduct,editVariant,variantD
       <td>{p.variants_count}</td>
       <td><input className="cell-input" type="number" value={p.default_hpp??''} onChange={e=>editProduct(p.id,'default_hpp',e.target.value)} placeholder="HPP / pcs"/></td>
       <td><input className="cell-input" type="number" step="0.01" value={p.default_admin_percent??''} onChange={e=>editProduct(p.id,'default_admin_percent',e.target.value)} placeholder="pakai toko"/></td>
-      <td>{ready?<span className="pill good">HPP siap</span>:<span className="pill bad">HPP kosong</span>}</td>
-      <td><button className="btn compact" onClick={toggle}>{expanded?'Tutup':'Variasi'}</button></td>
+      <td>{!p.active?<span className="pill neutral">Diarsipkan</span>:ready?<span className="pill good">{hasDefault?'HPP siap':`HPP lengkap · ${readyVariants}/${variants.length} override`}</span>:<span className="pill bad">{variants.length?`${missingVariants} variasi belum HPP`:'HPP belum diisi'}</span>}</td>
+      <td><div className="row-actions"><button className="btn compact" onClick={toggle}>{expanded?'Tutup':'Variasi'}</button><button className="btn compact" onClick={()=>toggleArchive(p)}>{p.active?'Arsipkan':'Aktifkan'}</button></div></td>
     </tr>
     {expanded&&(p.variants||[]).map(v=><tr key={v.id} className="variant-row">
       <td className="variant-indent">↳ {v.variation_name||'Tanpa variasi'}</td>
